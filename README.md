@@ -4,9 +4,13 @@
 
 [![CI](https://github.com/Ryou-Koshimizu/japanese-data-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Ryou-Koshimizu/japanese-data-agent/actions/workflows/ci.yml)
 
-自分のClaude APIキーで動かす、再利用可能な分析ハーネスです。UI・CLI・evalが同じ分析処理を使います。作者のAPIキーや実顧客データは含みません。
+自分のClaude APIキー、またはローカルのChatGPT/Codexログインで動かす分析ハーネスです。UI・CLI・evalが同じ分析処理を使います。作者のAPIキーや実顧客データは含みません。
 
-> **現在の状態**：MVP実装済み。APIなしのデモ、SQL検証、修正ループ、架空DBの集計テストを確認済み。実Claudeの50問evalは未実行です。正答率85%、中央値8秒、平均3円は目標であり実績ではありません。作者負担の公開実AIサービスは提供しません。
+> **現在の状態**：会話を保った深掘り・最大4本の集計・根拠付き回答・分析メモ保存を実装。このMacでChatGPTサブスクと実PostgreSQLを使い、追加の会話評価は初回14/14ターン成功しました。拡張前の固定50問評価は50/50成功でしたが、拡張後の全50問や任意の質問への100%を示す値ではありません。実Claude評価は未実行。作者負担の公開実AIサービスは提供しません。
+
+提出・レビュー向けの [業務シナリオと導入条件](docs/freelance-submission.md) / [会話型分析の設計判断](docs/adr/005-conversational-investigation.md) / [実測と制約](docs/verification.md)。AI支援による成果物と作者自身の理解・再現能力は区別します。
+
+公開対象の確認と本番運用上の注意は [セキュリティ確認](docs/security-publication.md) を参照してください。ローカルDBの既定パスワードは開発用の公開サンプルで、本番では使いません。
 
 ![固定回答デモ：質問例からグラフ・表・SQLまで](docs/assets/demo.gif)
 
@@ -52,6 +56,48 @@ npm run eval
 
 使用するAPIの費用は実行者自身に発生します。失敗時に固定回答へ切り替えて成功を装う動作はありません。seedはローカルの専用 `analytics` DBにのみ実行し、データが存在する場合は上書きしません。
 
+## このMacでChatGPTサブスクを使う
+
+ローカル実行の追加接続として、ログイン済みの公式Codex CLIを呼び出せます。AI推論はOpenAIのクラウドで行い、画面・API・SQL検証・PostgreSQLはこのMacで動きます。ローカルでモデルそのものを実行する機能ではありません。
+
+前提はCodex CLI（このMacで確認したバージョン: 0.162.1）とChatGPTログインです。`codex login status` で状態を確認できます。通常のOpenAI APIキーやClaude APIキーは使いません。ChatGPT/Codexのサブスク利用枠を消費し、無制限ではありません。利用できるモデルはアカウントによって異なります。
+
+`.env.local` の設定例:
+
+```dotenv
+AGENT_MODE=live
+AGENT_PROVIDER=codex
+CODEX_MODEL=gpt-6.1-sol
+CODEX_EFFORT=auto
+DATABASE_URL=postgresql://analyst:analyst_local_only@127.0.0.1:54324/analytics
+AGENT_ACCESS_TOKEN=自分で決めるローカルアクセス用トークン
+```
+
+`auto` はアプリ側の選択ルールで、SQL生成と解説はLow、実行エラーからのSQL修正はMediumです。モデルは `CODEX_MODEL` で指定します。推論ごとのモデル自動ルーティングやCodex画面のAuto設定とは別です。`low` / `medium` / `high` / `xhigh` を明示指定することもできます。
+
+```sh
+npm run dev
+npm run ask -- "先月の売上合計は？"
+npm run eval
+```
+
+DBは従来どおりDocker Composeでも使えます。このMacにはHomebrewのPostgreSQL 17を導入し、このリポジトリ専用の `.local-data/postgres` を127.0.0.1:54324で起動しています。自動起動サービスには登録していません。
+
+```sh
+# このMacでDBを再起動するとき
+/opt/homebrew/opt/postgresql@17/bin/pg_ctl -D "$PWD/.local-data/postgres" -l "$PWD/.local-data/postgres.log" -o '-h 127.0.0.1 -p 54324 -k /private/tmp' start
+# 停止するとき
+/opt/homebrew/opt/postgresql@17/bin/pg_ctl -D "$PWD/.local-data/postgres" stop
+```
+
+CLI・UI・evalは同じハーネスを通ります。Codexは一時ディレクトリで読み取り専用サンドボックスを使用し、ユーザー設定・プラグイン・MCP連携・シェル・ブラウザ等を無効にして構造化JSONを要求します。CLIの既存認証は公式CLIだけが利用し、アプリは認証ファイルを読みません。DB接続情報やClaudeキーは子プロセスに渡しません。AIが出したSQLをCodex自身が実行することはなく、アプリ側のAST検証・読み取り専用ロールが引き続き実行を制御します。
+
+ローカルHTTP APIは `/api/analyze` です。画面にアクセス用トークンを入力してから質問します。`npm run test:live` は実AIによる初回質問・追加質問を正解SQLと比較し、CSV保存とスマホ表示までテストします。APIなしの画面テストは `npm run test:e2e` です。実AIテストは通常CIでは実行しません。
+
+evalは各問の完了時に `reports/eval-*.json` を更新します。`status: complete` の50問レポートだけを全体精度として扱ってください。途中のレポートは完了扱いにしません。個別の再確認は `npm run eval -- --ids=03,06` のように実行でき、レポートには部分評価と明記します。ソースSHA-256・プロバイダー・モデル・effortを記録します。サブスク接続の費用はAPI単価に換算せず `null` とします。
+
+公式仕様: [Codex非対話実行と構造化出力](https://learn.chatgpt.com/docs/non-interactive-mode)、[Codex設定](https://learn.chatgpt.com/docs/config-file/config-reference)。Claude接続は `AGENT_PROVIDER=claude` に戻して従来の設定を使います。ChatGPTでの評価はClaudeの精度を証明しません。
+
 ## 審査で確認できる実装
 
 | 確認する能力             | 実装・証拠                                                                                                  |
@@ -68,20 +114,22 @@ npm run eval
 
 ## 実測と未検証
 
-2026-10-11のローカル確認結果は [検証記録](docs/verification.md) を参照してください。
+2026-10-11〜12のローカル確認結果は [検証記録](docs/verification.md) を参照してください。
 
-| 指標                                 | 状態                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------ |
-| TypeScript型チェック                 | 成功                                                                           |
-| 本番ビルド                           | 成功                                                                           |
-| 単体・API・WASM PostgreSQLテスト     | 検証記録に実件数を掲載                                                         |
-| デスクトップ・スマホE2E              | 5件成功                                                                        |
-| DBデータ                             | 5,000顧客 / 300商品 / 50,000注文 / 120,000明細 / 30施策                        |
-| 正解SQL                              | 40問すべてAST検証とDB実行を確認                                                |
-| 実Claudeの正答率・応答時間・トークン | 未測定：自分のキーで `npm run eval` を実行                                     |
-| 実AIの平均費用                       | 未測定：単価・為替の設定後に推計可能                                           |
-| 通常のPostgreSQL接続・Docker統合     | GitHub CIで検証する経路を同梱。ローカルではWASM PostgreSQLでクエリと権限を検証 |
-| 分散IPレート制限                     | 未実装。実AIの公開運用には追加が必要                                           |
+| 指標                                 | 状態                                                                       |
+| ------------------------------------ | -------------------------------------------------------------------------- |
+| TypeScript型チェック                 | 成功                                                                       |
+| 本番ビルド                           | 成功                                                                       |
+| 単体・API・PostgreSQLテスト          | 78件成功、実PostgreSQL接続を含みスキップなし                               |
+| デスクトップ・スマホE2E              | 固定デモ・操作テスト6件、ChatGPT実AIの画面テスト3件成功                    |
+| DBデータ                             | 5,000顧客 / 300商品 / 50,000注文 / 120,000明細 / 30施策                    |
+| 正解SQL                              | 40問すべてAST検証とDB実行を確認                                            |
+| 実ChatGPTの固定50問評価（拡張前）    | 50/50成功、危険操作のSQL実行0件。回答中央値10.2秒、平均10.4秒              |
+| 拡張後の会話評価（初回）             | 5シナリオ14/14ターン成功。複数集計・確認の解消・条件変更・拒否を含む       |
+| 実Claudeの正答率・応答時間・トークン | 未測定：自分のキーで `npm run eval` を実行                                 |
+| 実AIの平均費用                       | Claudeは単価・為替の設定後に推計可能。ChatGPTサブスクはAPI費用に換算しない |
+| 通常のPostgreSQL接続                 | このMacのPostgreSQL 17でseed・cursor・読み取り専用権限を確認               |
+| 分散IPレート制限                     | 未実装。実AIの公開運用には追加が必要                                       |
 
 ## 処理と安全設計
 
@@ -131,7 +179,7 @@ npm run test:e2e
 
 `ModelProvider` と `QueryExecutor` が差し替え境界です。UIを作り直さずにプロバイダー、モデル、DB実行器を変えられます。別データへ拡張する際はスキーマ説明・許可リスト・DB権限・evalを一緒に更新してください。任意のDB URLだけで自動対応する製品ではありません。
 
-今後の拡張：複数クエリによる原因分析、CSV取り込み、永続履歴、共有ストレージのレート制限、実AIの評価改善。認証サービス・MySQL/BigQuery・書き込み・多言語対応は今回の対象外です。
+会話型分析は最大4本を計画して実行します。結果を見て無制限に自律調査する機能ではなく、次の調査は利用者の質問または提案ボタンから開始します。寄与の分解は原因の証明ではありません。今後の拡張はCSV取り込み、永続履歴、共有ストレージのレート制限、顧客環境の受入試験。認証サービス・MySQL/BigQuery・書き込み・多言語対応は今回の対象外です。
 
 [要件定義](docs/requirements.md) / [設計判断](docs/adr/001-local-harness.md) / [評価方針](docs/adr/003-evaluation.md)
 
