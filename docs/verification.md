@@ -22,3 +22,7 @@ PGliteはWASM版PostgreSQLエンジンです。通常のPostgreSQLサーバー�
 ## GitHub Actionsでの検証
 
 2026-10-11、コミット `dc53688bb6a0bbc675b9966dd3f09b0a54c65ecf` の [CI run #1](https://github.com/Ryou-Koshimizu/japanese-data-agent/actions/runs/38138636070) が成功しました。整形・型チェック・62件のテスト・本番ビルド・Playwright E2E 2件に加え、PostgreSQL 17をDockerで起動し、seedと通常の接続・cursor・読み取り専用権限の統合テスト2件も成功しました。実Claude APIの評価は引き続き未実行です。
+
+## グラスモーフィズム改修後のローカル検証
+
+2026-10-11、型チェック・62件のテスト・本番ビルドが成功。画面E2Eは5件へ拡張し、375・768・1024・1440px、横向き844×390px、低モーション、通信失敗後の入力保持・再試行、新しい分析、結果フォーカスを確認しました。axeのWCAG A・AA関連ルールで初期画面と表・SQLを開いた結果画面に自動検出される違反は0件です。自動検査を完全なアクセシビリティ適合や実利用者によるUX評価と同一視しません。
