@@ -1,0 +1,1 @@
+Read AGENTS.md and docs/requirements.md before changing this project. Use npm run typecheck, npm test, npm run build and npm run test:e2e. Real AI eval requires the operator's own API key and local seeded database. Never turn unmeasured goals into achieved claims.
