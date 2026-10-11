@@ -18,3 +18,7 @@ PGliteはWASM版PostgreSQLエンジンです。通常のPostgreSQLサーバー�
 画面テストはPlaywrightと、npm配布のChromium 153を使って実行しました。通常のPlaywrightブラウザ取得はこの作業環境でダウンロードエラーになったため、`CHROMIUM_EXECUTABLE_PATH` を指定する経路で検証しました。通常CIではPlaywright管理のブラウザを使用します。
 
 実Claude APIは未実行です。LLMの正答率・レイテンシ・使用量・費用・プロンプトインジェクションへの実モデルの応答品質は未測定です。モックテストや正解SQLの実行成功をAI精度として扱っていません。
+
+## GitHub Actionsでの検証
+
+2026-10-11、コミット `dc53688bb6a0bbc675b9966dd3f09b0a54c65ecf` の [CI run #1](https://github.com/Ryou-Koshimizu/japanese-data-agent/actions/runs/38138636070) が成功しました。整形・型チェック・62件のテスト・本番ビルド・Playwright E2E 2件に加え、PostgreSQL 17をDockerで起動し、seedと通常の接続・cursor・読み取り専用権限の統合テスト2件も成功しました。実Claude APIの評価は引き続き未実行です。
