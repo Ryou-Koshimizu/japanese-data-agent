@@ -1,5 +1,5 @@
 import { analyze } from '../src/core/harness';
-import { claudeProvider } from '../src/adapters/claude';
+import { modelProvider } from '../src/server/provider';
 import { postgresExecutor } from '../src/adapters/postgres';
 import { readConfig } from '../src/server/config';
 const config = readConfig();
@@ -12,7 +12,7 @@ try {
   const result = await analyze(
     { question, history: [] },
     {
-      model: claudeProvider(config.ANTHROPIC_API_KEY, config.ANTHROPIC_MODEL),
+      model: modelProvider(config),
       db,
       prices: config.prices,
       onEvent: (e) => {

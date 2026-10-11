@@ -68,3 +68,27 @@ it('live requires an access token even when the Host looks local', async () => {
     ).status,
   ).toBe(401);
 });
+it('accepts the real same-origin Host and rejects a foreign Origin', async () => {
+  vi.stubEnv('AGENT_MODE', 'live');
+  vi.stubEnv('AGENT_PROVIDER', 'codex');
+  vi.stubEnv('CODEX_MODEL', 'test-placeholder');
+  vi.stubEnv('DATABASE_URL', 'postgresql://localhost/analytics');
+  vi.stubEnv('AGENT_ACCESS_TOKEN', 'test-access-token');
+  for (const [origin, status] of [
+    ['http://127.0.0.1:3001', 400],
+    ['https://foreign.example', 403],
+  ] as const) {
+    const response = await POST(
+      new Request('http://localhost:3001/api/analyze', {
+        method: 'POST',
+        headers: {
+          host: '127.0.0.1:3001',
+          origin,
+          authorization: 'Bearer test-access-token',
+        },
+        body: '{}',
+      }),
+    );
+    expect(response.status).toBe(status);
+  }
+});

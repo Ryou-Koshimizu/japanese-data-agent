@@ -2,7 +2,7 @@ import { requestSchema, type Event } from '../../../src/core/contracts';
 import { analyze } from '../../../src/core/harness';
 import { readConfig } from '../../../src/server/config';
 import { demoAnswer } from '../../../src/server/demo';
-import { claudeProvider } from '../../../src/adapters/claude';
+import { modelProvider } from '../../../src/server/provider';
 import { postgresExecutor } from '../../../src/adapters/postgres';
 import { timingSafeEqual } from 'node:crypto';
 export const runtime = 'nodejs';
@@ -14,7 +14,7 @@ function authorized(token: string, request: Request) {
 }
 let running = 0;
 export async function POST(request: Request) {
-  if (Number(request.headers.get('content-length') ?? 0) > 16000)
+  if (Number(request.headers.get('content-length') ?? 0) > 64000)
     return Response.json({ error: '入力が大きすぎます。' }, { status: 413 });
   let config;
   try {
@@ -32,7 +32,10 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     const origin = request.headers.get('origin');
-    if (origin && origin !== url.origin)
+    // Next's internal request URL can use localhost while the browser uses
+    // 127.0.0.1. Compare with the actual HTTP Host, not a forwarded host.
+    const expectedOrigin = `${url.protocol}//${request.headers.get('host') ?? url.host}`;
+    if (origin && origin !== expectedOrigin)
       return Response.json(
         { error: 'Originが一致しません。' },
         { status: 403 },
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
   let input;
   try {
     const text = await request.text();
-    if (text.length > 16000) throw new Error();
+    if (text.length > 64000) throw new Error();
     input = requestSchema.parse(JSON.parse(text));
   } catch {
     return Response.json(
@@ -75,10 +78,7 @@ export async function POST(request: Request) {
       ]);
       try {
         const result = await analyze(input, {
-          model: claudeProvider(
-            config.ANTHROPIC_API_KEY,
-            config.ANTHROPIC_MODEL,
-          ),
+          model: modelProvider(config),
           db,
           onEvent: send,
           signal,
