@@ -9,10 +9,12 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:live": "node --env-file=.env.local node_modules/@playwright/test/cli.js test --config=playwright.live.config.ts",
     "db:up": "docker compose up -d --wait",
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
     "ask": "tsx --env-file=.env.local scripts/ask.ts",
     "eval": "tsx --env-file=.env.local scripts/eval.ts",
+    "eval:conversations": "tsx --env-file=.env.local scripts/eval-conversations.ts",
     "verify": "npm run typecheck && npm test && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

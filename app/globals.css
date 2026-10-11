@@ -557,6 +557,10 @@ p {
 .graph {
   height: 280px;
   margin: 30px 0;
+  max-width: 100%;
+  min-width: 0;
+  /* ResizeObserver can leave the SVG at its previous width for a frame. */
+  overflow: hidden;
 }
 .metric {
   padding: 32px 0;
@@ -1049,4 +1053,58 @@ tbody tr:nth-child(even) {
 .example-question {
   display: block;
   text-wrap: balance;
+}
+.analysis-notes,
+.followups {
+  margin-block: 24px;
+}
+.analysis-notes h3,
+.followups h3 {
+  font-size: 15px;
+  margin-block: 12px;
+}
+.analysis-notes li {
+  margin-block: 10px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.analysis-notes li small {
+  color: var(--muted);
+}
+.followups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.followups button {
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  justify-content: space-between;
+  height: auto;
+  min-height: 44px;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: #ffffff09;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.followups button:hover:not(:disabled) {
+  background: #87ecd50f;
+  border-color: #87ecd580;
+}
+.followups .icon {
+  flex-shrink: 0;
+  width: 16px;
+}
+.intro.intro-compact {
+  min-height: 0;
 }

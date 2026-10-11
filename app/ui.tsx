@@ -11,7 +11,11 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import type { Analysis, RequestInput, Event } from '../src/core/contracts';
+import type { Analysis, Event } from '../src/core/contracts';
+import {
+  conversationHistory,
+  analysisMarkdown,
+} from '../src/core/conversation';
 import { examples, schema } from '../src/core/schema';
 type IconName =
   | 'chart'
@@ -173,7 +177,13 @@ function csv(result: Analysis) {
   a.click();
   URL.revokeObjectURL(url);
 }
-export default function Client({ mode }: { mode: 'demo' | 'live' }) {
+export default function Client({
+  mode,
+  provider = 'claude',
+}: {
+  mode: 'demo' | 'live';
+  provider?: 'claude' | 'codex';
+}) {
   const [question, setQuestion] = useState('');
   const [cards, setCards] = useState<{ question: string; result: Analysis }[]>(
     [],
@@ -200,14 +210,7 @@ export default function Client({ mode }: { mode: 'demo' | 'live' }) {
     setSql('');
     setLastQuestion(q);
     controller.current = new AbortController();
-    let history: RequestInput['history'] = cards
-      .filter((c) => c.result.kind === 'answer')
-      .slice(-6)
-      .map((c) => ({
-        question: c.question,
-        sql: c.result.sql,
-        summary: c.result.message,
-      }));
+    const history = conversationHistory(cards);
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -338,7 +341,9 @@ export default function Client({ mode }: { mode: 'demo' | 'live' }) {
             <span className="status-dot" />
             {mode === 'demo'
               ? '固定回答デモ · API不要'
-              : '実AI · 自分のAPIで実行'}
+              : provider === 'codex'
+                ? '実AI · ChatGPTサブスクで実行'
+                : '実AI · 自分のAPIで実行'}
           </div>
         </header>
         <div className="conversation">
@@ -408,7 +413,11 @@ export default function Client({ mode }: { mode: 'demo' | 'live' }) {
             <label htmlFor="question">
               データへの質問
               <span>
-                {mode === 'demo' ? '固定回答で画面を試す' : 'Claudeで分析する'}
+                {mode === 'demo'
+                  ? '固定回答で画面を試す'
+                  : provider === 'codex'
+                    ? 'ChatGPTで分析する'
+                    : 'Claudeで分析する'}
               </span>
             </label>
             <div>
@@ -449,7 +458,9 @@ export default function Client({ mode }: { mode: 'demo' | 'live' }) {
                   onChange={(e) => setToken(e.target.value)}
                 />
                 <small>
-                  Claude APIキーは入力せず、サーバー環境変数に設定してください。
+                  {provider === 'codex'
+                    ? 'このMacのログイン済みCodex CLIを使います。サブスクの利用枠を消費します。'
+                    : 'Claude APIキーは入力せず、サーバー環境変数に設定してください。'}
                 </small>
               </details>
             )}
@@ -536,6 +547,78 @@ export default function Client({ mode }: { mode: 'demo' | 'live' }) {
                   </span>
                 </div>
                 <p>{c.result.message}</p>
+                {!!c.result.report?.findings.length && (
+                  <details className="analysis-notes">
+                    <summary>
+                      数値から分かること · {c.result.report.findings.length}件
+                    </summary>
+                    <ul>
+                      {c.result.report.findings.map((f, j) => (
+                        <li key={j}>
+                          {f.text}{' '}
+                          <small>根拠 {f.evidenceIds.join('・')}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {!!c.result.report?.limitations.length && (
+                  <div className="analysis-notes">
+                    <h3>分からないこと・制約</h3>
+                    <ul>
+                      {c.result.report.limitations.map((x, j) => (
+                        <li key={j}>{x}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {(c.result.evidence?.length ?? 0) > 1 && (
+                  <div className="analysis-notes">
+                    <h3>調査の根拠 · {c.result.evidence!.length}件</h3>
+                    {c.result.evidence!.map((e, j) => (
+                      <details key={j}>
+                        <summary>
+                          根拠 {j + 1}: {e.label}
+                        </summary>
+                        <div
+                          className="table-scroll"
+                          role="region"
+                          tabIndex={0}
+                          aria-label={`根拠 ${j + 1} の集計表`}
+                        >
+                          <table>
+                            <thead>
+                              <tr>
+                                {e.table.columns.map((x) => (
+                                  <th key={x}>{x}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {e.table.rows.map((r, k) => (
+                                <tr key={k}>
+                                  {e.table.columns.map((x) => (
+                                    <td key={x}>{String(r[x] ?? '—')}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {e.table.truncated && (
+                          <small>結果の上限により省略があります。</small>
+                        )}
+                        <pre>{e.sql}</pre>
+                        <button
+                          className="secondary-button"
+                          onClick={() => csv({ ...c.result, table: e.table })}
+                        >
+                          根拠 {j + 1} のCSVを保存
+                        </button>
+                      </details>
+                    ))}
+                  </div>
+                )}
                 <Graph result={c.result} />
                 {c.result.table.rows.length > 0 && (
                   <details>
@@ -618,6 +701,36 @@ export default function Client({ mode }: { mode: 'demo' | 'live' }) {
                       : `${c.result.costJpy.toFixed(2)}円（設定単価による推計）`}
                   </small>
                 </details>
+                {c.result.kind === 'answer' && (
+                  <button
+                    className="secondary-button"
+                    onClick={() => {
+                      const url = URL.createObjectURL(
+                        new Blob([analysisMarkdown(c.question, c.result)], {
+                          type: 'text/markdown;charset=utf-8',
+                        }),
+                      );
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'analysis-note.md';
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    <Icon name="download" />
+                    分析メモを保存
+                  </button>
+                )}
+                {!!c.result.report?.nextQuestions.length && (
+                  <div className="followups" aria-label="この分析の次の質問">
+                    <h3>次に調べる</h3>
+                    {c.result.report.nextQuestions.map((q) => (
+                      <button key={q} disabled={busy} onClick={() => submit(q)}>
+                        {q} <Icon name="arrow" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </article>
             </section>
           ))}
