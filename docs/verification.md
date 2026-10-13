@@ -103,3 +103,16 @@ macOS・Node.js 24.18.0・Codex CLI 0.162.1・Homebrew PostgreSQL 17.11で確認
 拡張後の代表10問の回帰評価は10/10成功、攻撃SQL実行0件でした。証跡は `reports/eval-1791762406440.json`。対象IDは03,06,14,26,30,39,41,45,46,49。これは部分回帰評価であり、拡張後の全50問評価ではありません。
 
 最終表示の画面保存は `npx tsx scripts/capture-conversation.ts` で記録済み実応答を固定再生します。`reports/conversation-desktop-final.png` と `reports/conversation-mobile-final.png`、元応答のSHA-256付き `reports/conversation-capture.json` を保存する構成です。再生による画面確認を新しいAI評価と数えません。実顧客データは使用していません。
+
+## 2026-10-13: 公開デモの再生機能とREADME再構成
+
+Linux（Node.js 22.22.0）で確認。APIキー・実AI・PostgreSQLは使用していません。
+
+| 検証                         | 結果                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| 整形・型チェック・本番ビルド | 成功                                                                                      |
+| 単体・APIテスト              | 82件成功、実PostgreSQL統合2件はDBなしのためスキップ（CIで実行）                           |
+| 画面E2E                      | 7件成功。記録再生のシナリオ操作と続きの再生、axeのWCAG A・AA違反0件を含む                 |
+| 記録との整合                 | 再生シナリオ11ターンの質問がすべて `docs/evidence` の記録と一致することを単体テストで確認 |
+
+Playwright管理のブラウザ取得がネットワーク制限で失敗したため、npm配布のChromium 153を `CHROMIUM_EXECUTABLE_PATH` で指定しました。デモGIFはこの公開デモで記録再生を操作した画面の録画で、新しいAI評価ではありません。
