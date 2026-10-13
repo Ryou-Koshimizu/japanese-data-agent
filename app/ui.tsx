@@ -17,6 +17,7 @@ import {
   analysisMarkdown,
 } from '../src/core/conversation';
 import { examples, schema } from '../src/core/schema';
+import { replayScenarios, nextReplayQuestion } from '../src/core/replays';
 type IconName =
   | 'chart'
   | 'arrow'
@@ -202,15 +203,16 @@ export default function Client({
     resultRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
   }, [cards.length]);
   const controller = useRef<AbortController | null>(null);
-  async function submit(q: string) {
+  async function submit(q: string, fresh = false) {
     if (busy || !q.trim()) return;
+    if (fresh) setCards([]);
     setBusy(true);
     setError('');
     setSteps([]);
     setSql('');
     setLastQuestion(q);
     controller.current = new AbortController();
-    const history = conversationHistory(cards);
+    const history = fresh ? [] : conversationHistory(cards);
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -340,7 +342,7 @@ export default function Client({
           <div className="mode">
             <span className="status-dot" />
             {mode === 'demo'
-              ? '固定回答デモ · API不要'
+              ? '公開デモ · AI呼び出しなし'
               : provider === 'codex'
                 ? '実AI · ChatGPTサブスクで実行'
                 : '実AI · 自分のAPIで実行'}
@@ -414,7 +416,7 @@ export default function Client({
               データへの質問
               <span>
                 {mode === 'demo'
-                  ? '固定回答で画面を試す'
+                  ? '固定回答・実AI記録の再生'
                   : provider === 'codex'
                     ? 'ChatGPTで分析する'
                     : 'Claudeで分析する'}
@@ -465,10 +467,42 @@ export default function Client({
               </details>
             )}
           </form>
+          {mode === 'demo' && (
+            <section className="suggestions" aria-label="実AIの記録を再生">
+              <div className="section-heading">
+                <span>実AIの記録を再生</span>
+                <span>{replayScenarios.length}シナリオ</span>
+              </div>
+              <div className="examples">
+                {replayScenarios.map((s) => (
+                  <button
+                    key={s.id}
+                    disabled={busy}
+                    onClick={() => submit(s.questions[0], true)}
+                  >
+                    <span className="example-icon">
+                      <Icon name={s.id === 'safety' ? 'shield' : 'spark'} />
+                    </span>
+                    <span>
+                      <small>
+                        {s.title} · {s.questions.length}ターン
+                      </small>
+                      <span className="example-question">{s.shows}</span>
+                    </span>
+                    <Icon name="arrow" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           <section className="suggestions" aria-label="質問例">
             <div className="section-heading">
               <span>
-                {cards.length ? '次の問いを選ぶ' : 'まずは、こんな問いから'}
+                {mode === 'demo'
+                  ? '固定回答で画面を試す'
+                  : cards.length
+                    ? '次の問いを選ぶ'
+                    : 'まずは、こんな問いから'}
               </span>
               <span>質問例</span>
             </div>
@@ -502,9 +536,9 @@ export default function Client({
             <div className="notice">
               <Icon name="shield" />
               <p>
-                <strong>気軽に試せる、固定回答デモ</strong>
+                <strong>公開デモはAIを呼び出しません</strong>
                 <span>
-                  画面体験用のサンプルを表示します。AI分析・DB実行は行いません。
+                  「実AIの記録を再生」は、架空データに対して実際に記録したAIの応答・SQL・集計結果をそのまま表示します。質問例は画面確認用の固定回答です。新しい質問を分析するには、自分の環境で実AIモードを起動してください。
                 </span>
               </p>
             </div>
@@ -543,7 +577,9 @@ export default function Client({
                   <span>
                     {c.result.mode === 'demo'
                       ? '固定回答'
-                      : `${c.result.elapsedMs}ms · ${c.result.attempts}回実行`}
+                      : c.result.mode === 'replay'
+                        ? `実AI記録の再生 · 記録時 ${c.result.elapsedMs}ms · ${c.result.attempts}回実行`
+                        : `${c.result.elapsedMs}ms · ${c.result.attempts}回実行`}
                   </span>
                 </div>
                 <p>{c.result.message}</p>
@@ -721,19 +757,49 @@ export default function Client({
                     分析メモを保存
                   </button>
                 )}
-                {!!c.result.report?.nextQuestions.length && (
-                  <div className="followups" aria-label="この分析の次の質問">
-                    <h3>次に調べる</h3>
-                    {c.result.report.nextQuestions.map((q) => (
-                      <button key={q} disabled={busy} onClick={() => submit(q)}>
-                        {q} <Icon name="arrow" />
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {!!c.result.report?.nextQuestions.length &&
+                  (c.result.mode === 'replay' ? (
+                    <div className="analysis-notes">
+                      <h3>AIが提案した次の調査</h3>
+                      <ul>
+                        {c.result.report.nextQuestions.map((q) => (
+                          <li key={q}>{q}</li>
+                        ))}
+                      </ul>
+                      <small>実AIモードで実行できます。</small>
+                    </div>
+                  ) : (
+                    <div className="followups" aria-label="この分析の次の質問">
+                      <h3>次に調べる</h3>
+                      {c.result.report.nextQuestions.map((q) => (
+                        <button
+                          key={q}
+                          disabled={busy}
+                          onClick={() => submit(q)}
+                        >
+                          {q} <Icon name="arrow" />
+                        </button>
+                      ))}
+                    </div>
+                  ))}
               </article>
             </section>
           ))}
+          {!busy &&
+            cards.at(-1)?.result.mode === 'replay' &&
+            nextReplayQuestion(cards.at(-1)!.question) && (
+              <div className="followups" role="region" aria-label="記録の続き">
+                <h3>記録の続きを再生</h3>
+                <button
+                  onClick={() =>
+                    submit(nextReplayQuestion(cards.at(-1)!.question)!)
+                  }
+                >
+                  {nextReplayQuestion(cards.at(-1)!.question)}{' '}
+                  <Icon name="arrow" />
+                </button>
+              </div>
+            )}
           {busy && (
             <div className="progress" role="status" aria-live="polite">
               <strong>

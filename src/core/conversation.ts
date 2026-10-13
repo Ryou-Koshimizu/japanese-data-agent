@@ -47,7 +47,7 @@ export function analysisMarkdown(question: string, result: Analysis): string {
   const parts = [
     '# 分析メモ',
     `質問: ${question}`,
-    `モード: ${result.mode === 'demo' ? '固定回答デモ（AI・DB未実行）' : '実AI / 架空ECデータ'}`,
+    `モード: ${result.mode === 'demo' ? '固定回答デモ（AI・DB未実行）' : result.mode === 'replay' ? '記録済み実AI応答の再生（今回はAI・DB未実行）' : '実AI / 架空ECデータ'}`,
     result.message,
   ];
   for (const finding of result.report?.findings ?? [])

@@ -6,7 +6,7 @@ test('質問から固定回答・SQL・表まで確認できる', async ({ page 
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path: '.captures/start.png', caret: 'initial' });
   }
-  await expect(page.getByText('固定回答デモ · API不要')).toBeVisible();
+  await expect(page.getByText('公開デモ · AI呼び出しなし')).toBeVisible();
   await page
     .getByRole('button', { name: '先月の売上トップ10の商品は？' })
     .click();
@@ -125,4 +125,28 @@ test('初期画面と結果画面にaxeで検出されるWCAG A・AA違反がな
   await page.getByText('集計表 · 10行').click();
   await page.getByText('生成SQLを確認').click();
   expect((await audit()).violations).toEqual([]);
+});
+
+test('実AIの記録を再生し、続きのターンまで辿れる', async ({ page }) => {
+  await page.goto('/');
+  await page
+    .getByRole('region', { name: '実AIの記録を再生' })
+    .getByRole('button', { name: /曖昧な質問の確認/ })
+    .click();
+  const first = page.getByRole('region', { name: '分析結果 1' });
+  await expect(first.getByText('確認が必要です')).toBeVisible();
+  await expect(first.getByText(/実AI記録の再生 · 記録時/)).toBeVisible();
+  await page
+    .getByRole('region', { name: '記録の続き' })
+    .getByRole('button')
+    .click();
+  const second = page.getByRole('region', { name: '分析結果 2' });
+  await expect(second.locator('.answer-label')).toContainText('分析結果');
+  await expect(second).toContainText('実AI記録の再生');
+  await second.getByText('生成SQLを確認').click();
+  await expect(second.locator('pre').last()).toContainText('SELECT');
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  expect(results.violations).toEqual([]);
 });
