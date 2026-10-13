@@ -18,6 +18,7 @@ import {
 } from '../src/core/conversation';
 import { examples, schema } from '../src/core/schema';
 import { replayScenarios, nextReplayQuestion } from '../src/core/replays';
+import { findingBlocks } from '../src/core/finding-text';
 type IconName =
   | 'chart'
   | 'arrow'
@@ -591,7 +592,40 @@ export default function Client({
                     <ul>
                       {c.result.report.findings.map((f, j) => (
                         <li key={j}>
-                          {f.text}{' '}
+                          {findingBlocks(f.text).map((b, k) =>
+                            b.type === 'text' ? (
+                              <span key={k} className="finding-line">
+                                {b.text}
+                              </span>
+                            ) : (
+                              <div
+                                key={k}
+                                className="table-scroll"
+                                role="region"
+                                tabIndex={0}
+                                aria-label={`発見 ${j + 1} の表`}
+                              >
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      {b.columns.map((x) => (
+                                        <th key={x}>{x}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {b.rows.map((r, m) => (
+                                      <tr key={m}>
+                                        {r.map((x, n) => (
+                                          <td key={n}>{x}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ),
+                          )}
                           <small>根拠 {f.evidenceIds.join('・')}</small>
                         </li>
                       ))}
