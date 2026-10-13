@@ -1112,3 +1112,9 @@ tbody tr:nth-child(even) {
 .suggestions + .suggestions {
   margin-top: 28px;
 }
+.finding-line {
+  display: block;
+}
+.analysis-notes li .table-scroll {
+  margin: 8px 0;
+}
