@@ -77,7 +77,8 @@ export type Analysis = {
   usage: Usage;
   elapsedMs: number;
   costJpy: number | null;
-  mode: 'demo' | 'live';
+  /** demo: fixed sample. replay: recorded real AI response. live: real AI now. */
+  mode: 'demo' | 'replay' | 'live';
   errorCode?: string;
   evidence?: Evidence[];
   report?: Report;

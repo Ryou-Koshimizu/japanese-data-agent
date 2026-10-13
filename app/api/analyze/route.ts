@@ -2,6 +2,7 @@ import { requestSchema, type Event } from '../../../src/core/contracts';
 import { analyze } from '../../../src/core/harness';
 import { readConfig } from '../../../src/server/config';
 import { demoAnswer } from '../../../src/server/demo';
+import { replayAnswer } from '../../../src/server/replay';
 import { modelProvider } from '../../../src/server/provider';
 import { postgresExecutor } from '../../../src/adapters/postgres';
 import { timingSafeEqual } from 'node:crypto';
@@ -64,8 +65,18 @@ export async function POST(request: Request) {
           controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
       };
       if (config.mode === 'demo') {
-        send({ type: 'step', stage: '固定回答デモ' });
-        send({ type: 'result', result: demoAnswer(input.question) });
+        const replay = replayAnswer(input.question);
+        if (replay) {
+          send({
+            type: 'step',
+            stage: '記録済みの実AI応答を再生（新しいAI呼び出し・SQL実行なし）',
+          });
+          if (replay.sql) send({ type: 'sql', sql: replay.sql });
+          send({ type: 'result', result: replay });
+        } else {
+          send({ type: 'step', stage: '固定回答デモ' });
+          send({ type: 'result', result: demoAnswer(input.question) });
+        }
         controller.close();
         return;
       }
