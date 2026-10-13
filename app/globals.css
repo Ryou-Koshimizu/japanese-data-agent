@@ -1108,3 +1108,7 @@ tbody tr:nth-child(even) {
 .intro.intro-compact {
   min-height: 0;
 }
+
+.suggestions + .suggestions {
+  margin-top: 28px;
+}
