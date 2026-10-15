@@ -44,6 +44,12 @@ describe('SELECT許可リスト', () => {
     'DO $$ BEGIN DELETE FROM demo.orders; END $$',
     'EXPLAIN SELECT * FROM demo.orders',
     'SELECT * FROM demo.orders TABLESAMPLE SYSTEM(1)',
+    // A CTE name reused outside its scope resolves to the real catalog.
+    'WITH a AS (SELECT rolname, rolsuper FROM pg_roles), pg_roles AS (SELECT 1) SELECT * FROM a',
+    'SELECT name, setting FROM pg_settings WHERE EXISTS (WITH pg_settings AS (SELECT 1) SELECT 1 FROM pg_settings)',
+    // INTO and FOR UPDATE inside a set operation.
+    'SELECT * INTO stolen FROM demo.orders UNION ALL SELECT * FROM demo.orders',
+    'SELECT id FROM demo.orders UNION SELECT id FROM demo.orders FOR UPDATE',
   ];
   it.each(unsafe)('rejects %s', async (sql) => {
     await expect(validateSql(sql)).rejects.toThrow();
