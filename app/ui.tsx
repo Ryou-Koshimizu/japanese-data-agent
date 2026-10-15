@@ -156,12 +156,16 @@ function Graph({ result }: { result: Analysis }) {
   );
 }
 function csv(result: Analysis) {
-  const escape = (v: unknown) =>
-    '"' +
-    String(v ?? '')
-      .replace(/"/g, '""')
-      .replace(/^[\s=+@-]/, "'") +
-    '"';
+  // Numbers stay numbers (negative amounts keep their sign). Text that a
+  // spreadsheet could run as a formula gets a leading apostrophe, prepended
+  // rather than replacing the first character.
+  const escape = (v: unknown) => {
+    const s = String(v ?? '');
+    if (typeof v === 'number' || /^-?\d+(\.\d+)?$/.test(s)) return s;
+    return (
+      '"' + (/^[=+\-@\t\r]/.test(s) ? "'" + s : s).replace(/"/g, '""') + '"'
+    );
+  };
   const text =
     '\ufeff' +
     [
