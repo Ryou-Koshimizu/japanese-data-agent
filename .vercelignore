@@ -1,0 +1,8 @@
+# Local-only data that must never be uploaded by `vercel deploy`.
+.env*
+!.env.example
+.local-data/
+reports/
+.captures/
+playwright-report/
+test-results/
