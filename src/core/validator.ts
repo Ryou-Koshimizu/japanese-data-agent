@@ -108,6 +108,11 @@ export async function validateSql(sql: string): Promise<string> {
       const name = (obj.CommonTableExpr as Obj).ctename as string;
       if (tables.includes(name as (typeof tables)[number]))
         throw new UnsafeSqlError('CTEが許可テーブルを隠しています。');
+      // CTE names are collected for the whole query, but PostgreSQL resolves
+      // them by scope: a pg_* name used outside its scope reaches the catalog
+      // through search_path (pg_catalog first). Every catalog relation is pg_*.
+      if (/^pg_/i.test(name))
+        throw new UnsafeSqlError('CTEの名前にpg_は使えません。');
       ctes.add(name);
     }
     Object.values(obj).forEach(collect);
@@ -125,6 +130,10 @@ export async function validateSql(sql: string): Promise<string> {
         (key.endsWith('Stmt') && key !== 'SelectStmt') ||
         [
           'IntoClause',
+          // INTO and FOR UPDATE inside UNION branches are stored without the
+          // SelectStmt wrapper, under these lower-case keys.
+          'intoClause',
+          'lockingClause',
           'RangeFunction',
           'RangeTableFunc',
           'RangeTableSample',
@@ -174,6 +183,13 @@ export async function validateSql(sql: string): Promise<string> {
       }
       if (key === 'A_Expr' && (value as Obj).name) {
         const names = strings((value as Obj).name);
+        if (names.length !== 1 || !operators.has(names[0]))
+          throw new UnsafeSqlError('許可外の演算子です。');
+      }
+      // x op ANY/ALL (subquery) carries its operator on the SubLink.
+      const operName = key === 'SubLink' ? (value as Obj).operName : undefined;
+      if (Array.isArray(operName) && operName.length) {
+        const names = strings(operName);
         if (names.length !== 1 || !operators.has(names[0]))
           throw new UnsafeSqlError('許可外の演算子です。');
       }
