@@ -73,7 +73,7 @@ it('accepts the real same-origin Host and rejects a foreign Origin', async () =>
   vi.stubEnv('AGENT_PROVIDER', 'codex');
   vi.stubEnv('CODEX_MODEL', 'test-placeholder');
   vi.stubEnv('DATABASE_URL', 'postgresql://localhost/analytics');
-  vi.stubEnv('AGENT_ACCESS_TOKEN', 'test-access-token');
+  vi.stubEnv('AGENT_ACCESS_TOKEN', 'test-access-token-0123456789');
   for (const [origin, status] of [
     ['http://127.0.0.1:3001', 400],
     ['https://foreign.example', 403],
@@ -84,11 +84,34 @@ it('accepts the real same-origin Host and rejects a foreign Origin', async () =>
         headers: {
           host: '127.0.0.1:3001',
           origin,
-          authorization: 'Bearer test-access-token',
+          authorization: 'Bearer test-access-token-0123456789',
         },
         body: '{}',
       }),
     );
     expect(response.status).toBe(status);
   }
+});
+it('refuses a short access token and an oversized body without a length header', async () => {
+  vi.stubEnv('AGENT_MODE', 'live');
+  vi.stubEnv('AGENT_PROVIDER', 'codex');
+  vi.stubEnv('CODEX_MODEL', 'test-placeholder');
+  vi.stubEnv('DATABASE_URL', 'postgresql://localhost/analytics');
+  vi.stubEnv('AGENT_ACCESS_TOKEN', 'short-token');
+  const short = await POST(
+    new Request('http://localhost/api/analyze', {
+      method: 'POST',
+      headers: { authorization: 'Bearer short-token' },
+      body: '{}',
+    }),
+  );
+  expect(short.status).toBe(503);
+  vi.stubEnv('AGENT_MODE', 'demo');
+  const big = await POST(
+    new Request('http://localhost/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ question: 'x'.repeat(70000) }),
+    }),
+  );
+  expect(big.status).toBe(413);
 });
