@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/Ryou-Koshimizu/japanese-data-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Ryou-Koshimizu/japanese-data-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![公開デモ](https://img.shields.io/badge/%E5%85%AC%E9%96%8B%E3%83%87%E3%83%A2-%E3%83%96%E3%83%A9%E3%82%A6%E3%82%B6%E3%81%A7%E9%96%8B%E3%81%8F-0369a1)](https://japanese-data-agent.vercel.app)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FRyou-Koshimizu%2Fjapanese-data-agent)
 
 ![実AIの記録を再生：3本の集計による売上低下の調査と、危険な依頼の拒否](docs/assets/demo.gif)
@@ -28,6 +29,8 @@
 ## 試す
 
 ### 1. 公開デモ（APIキー・DB不要）
+
+**<https://japanese-data-agent.vercel.app>** をブラウザで開くだけで試せます。手元で動かす場合は次のとおりです。
 
 ```sh
 npm ci
