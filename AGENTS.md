@@ -1,6 +1,6 @@
 # Engineering requirements
 
-This repository is evidence for freelance engineering reviews targeting roughly JPY 500,000 engagements. Demonstrate maintainability, safe execution, reproducible verification and honest limitations; do not promise contract acquisition.
+This repository is a public technical demonstration. Demonstrate maintainability, safe execution, reproducible verification and honest limitations; do not claim results that were not measured.
 
 - Never commit secrets, personal data, real customer data or fabricated metrics.
 - Claude keys are configured by the person running their own environment.

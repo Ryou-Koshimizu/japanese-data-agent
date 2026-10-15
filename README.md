@@ -88,7 +88,7 @@ AIの出力は信用せず、アプリの構文検証とDBの権限の二重で�
 - **インジェクション**：データ内の文字列は未信頼として扱うよう指示しますが、安全性はプロンプトに依存しません。完全な防御は主張しません。
 - **公開時の制御**：実AIモードはアクセス用トークン、Origin検査、同時実行2件。複数台構成のレート制限は未実装です。
 
-詳細は [脅威モデル](docs/security.md)、[SQL安全性のADR](docs/adr/002-sql-safety.md)、[公開前のセキュリティ確認](docs/security-publication.md)。
+詳細は [脅威モデル](docs/security.md)、[SQL安全性のADR](docs/adr/002-sql-safety.md)、[公開前のセキュリティ確認](docs/security-publication.md)。GitHub側ではSecret scanning・Dependabot・CodeQL・依存関係の審査を有効にし、Actionsはコミット固定・最小権限です。脆弱性の報告は [SECURITY.md](SECURITY.md) の手順で非公開でお願いします。
 
 ## 審査で確認できる実装
 
