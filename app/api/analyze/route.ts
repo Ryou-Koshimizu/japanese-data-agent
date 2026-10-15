@@ -8,14 +8,37 @@ import { postgresExecutor } from '../../../src/adapters/postgres';
 import { timingSafeEqual } from 'node:crypto';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Live analysis may take up to the 120-second budget below.
+export const maxDuration = 130;
+const MAX_BODY = 64000;
+// A shorter token can be guessed; generate it, e.g. `openssl rand -hex 24`.
+const MIN_TOKEN = 24;
 function authorized(token: string, request: Request) {
   const a = Buffer.from(request.headers.get('authorization') ?? '');
   const b = Buffer.from(`Bearer ${token}`);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+/** Read the body, stopping as soon as it grows past the limit. */
+async function readBody(request: Request): Promise<string | null> {
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
 let running = 0;
 export async function POST(request: Request) {
-  if (Number(request.headers.get('content-length') ?? 0) > 64000)
+  if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY)
     return Response.json({ error: '入力が大きすぎます。' }, { status: 413 });
   let config;
   try {
@@ -27,7 +50,14 @@ export async function POST(request: Request) {
     const token = process.env.AGENT_ACCESS_TOKEN;
     const url = new URL(request.url);
 
-    if (!token || (token && !authorized(token, request)))
+    if (token && token.length < MIN_TOKEN)
+      return Response.json(
+        {
+          error: `AGENT_ACCESS_TOKEN は${MIN_TOKEN}文字以上の乱数にしてください。`,
+        },
+        { status: 503 },
+      );
+    if (!token || !authorized(token, request))
       return Response.json(
         { error: '実AIにはアクセス用トークンが必要です。' },
         { status: 401 },
@@ -44,12 +74,26 @@ export async function POST(request: Request) {
     if (running >= 2)
       return Response.json({ error: '同時実行の上限です。' }, { status: 429 });
   }
+  // Reserve the live slot before any await, so parallel requests cannot all
+  // pass the check above; every exit path below gives it back exactly once.
+  let held = config.mode === 'live';
+  if (held) running++;
+  const release = () => {
+    if (held) {
+      held = false;
+      running--;
+    }
+  };
   let input;
   try {
-    const text = await request.text();
-    if (text.length > 64000) throw new Error();
+    const text = await readBody(request);
+    if (text === null) {
+      release();
+      return Response.json({ error: '入力が大きすぎます。' }, { status: 413 });
+    }
     input = requestSchema.parse(JSON.parse(text));
   } catch {
+    release();
     return Response.json(
       { error: '質問または履歴の形式が不正です。' },
       { status: 400 },
@@ -80,14 +124,14 @@ export async function POST(request: Request) {
         controller.close();
         return;
       }
-      running++;
-      const db = postgresExecutor(config.DATABASE_URL);
-      const signal = AbortSignal.any([
-        request.signal,
-        executionAbort.signal,
-        AbortSignal.timeout(120000),
-      ]);
+      let db: ReturnType<typeof postgresExecutor> | undefined;
       try {
+        db = postgresExecutor(config.DATABASE_URL);
+        const signal = AbortSignal.any([
+          request.signal,
+          executionAbort.signal,
+          AbortSignal.timeout(120000),
+        ]);
         const result = await analyze(input, {
           model: modelProvider(config),
           db,
@@ -116,8 +160,8 @@ export async function POST(request: Request) {
             ),
           );
       } finally {
-        running--;
-        await db.close();
+        release();
+        await db?.close().catch(() => {});
         if (!cancelled) controller.close();
       }
     },
