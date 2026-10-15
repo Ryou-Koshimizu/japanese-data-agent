@@ -9,3 +9,8 @@ test-results/
 *.tsbuildinfo
 .captures/
 .local-data/
+.vercel/
+.DS_Store
+coverage/
+*.pem
+*.key
