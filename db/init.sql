@@ -4,6 +4,9 @@ REVOKE ALL ON SCHEMA demo FROM PUBLIC;
 CREATE ROLE analyst LOGIN PASSWORD 'analyst_local_only' NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 ALTER ROLE analyst SET default_transaction_read_only = on;
 ALTER ROLE analyst SET statement_timeout = '5s';
+-- Bound memory and temporary disk a single query can use within its 5 seconds.
+ALTER ROLE analyst SET work_mem = '16MB';
+ALTER ROLE analyst SET temp_file_limit = '100MB';
 ALTER ROLE analyst SET search_path = pg_catalog, demo;
 GRANT CONNECT ON DATABASE analytics TO analyst;
 REVOKE TEMPORARY ON DATABASE analytics FROM PUBLIC;
