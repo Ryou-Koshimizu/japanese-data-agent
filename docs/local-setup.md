@@ -1,12 +1,12 @@
 # ローカル実行の詳細
 
-READMEの「試す」で足りない場合の詳細です。
+READMEの「試す」の続きで、ローカル実行の詳しい手順です。
 
 ## ChatGPTサブスク（Codex CLI）で動かす
 
-ローカル実行の追加接続として、ログイン済みの公式Codex CLIを呼び出せます。AI推論はOpenAIのクラウドで行い、画面・API・SQL検証・PostgreSQLは手元のマシンで動きます。ローカルでモデルそのものを実行する機能ではありません。
+ローカル実行の追加接続として、ログイン済みの公式Codex CLIを呼び出せます。AI推論はOpenAIのクラウドで行い、画面・API・SQL検証・PostgreSQLは手元のマシンで動きます。
 
-前提はCodex CLI（確認したバージョン: 0.162.1）とChatGPTログインです。`codex login status` で状態を確認できます。通常のOpenAI APIキーやClaude APIキーは使いません。ChatGPT/Codexのサブスク利用枠を消費し、無制限ではありません。利用できるモデルはアカウントによって異なります。
+前提はCodex CLI（確認したバージョン: 0.162.1）とChatGPTログインです。`codex login status` で状態を確認できます。OpenAI APIキーやClaude APIキーは使わず、ChatGPT/Codexのサブスク利用枠を消費します。利用枠の上限に達したときは `CODEX_RATE_LIMIT` で止まり、評価は途中結果を保存して停止します。利用できるモデルはアカウントによって異なります。
 
 `.env.local` の設定例:
 
@@ -29,11 +29,11 @@ npm run eval
 
 CLI・UI・evalは同じハーネスを通ります。Codexは一時ディレクトリで読み取り専用サンドボックスを使用し、ユーザー設定・プラグイン・MCP連携・シェル・ブラウザ等を無効にして構造化JSONを要求します。CLIの既存認証は公式CLIだけが利用し、アプリは認証ファイルを読みません。DB接続情報やClaudeキーは子プロセスに渡しません。AIが出したSQLをCodex自身が実行することはなく、アプリ側のAST検証・読み取り専用ロールが引き続き実行を制御します。
 
-公式仕様: [Codex非対話実行と構造化出力](https://learn.chatgpt.com/docs/non-interactive-mode)、[Codex設定](https://learn.chatgpt.com/docs/config-file/config-reference)。Claude接続は `AGENT_PROVIDER=claude` に戻して従来の設定を使います。ChatGPTでの評価はClaudeの精度を証明しません。
+公式仕様: [Codex非対話実行と構造化出力](https://learn.chatgpt.com/docs/non-interactive-mode)、[Codex設定](https://learn.chatgpt.com/docs/config-file/config-reference)。Claude接続は `AGENT_PROVIDER=claude` に戻して従来の設定を使います。Claudeでの正答率は、その設定で同じ `npm run eval` を実行して記録します。
 
 ## Docker を使わずに PostgreSQL を動かす（macOS / Homebrew の例）
 
-DBは通常Docker Composeで起動します。検証に使ったmacOSでは、HomebrewのPostgreSQL 17をこのリポジトリ専用の `.local-data/postgres` で127.0.0.1:54324に起動しました。自動起動サービスには登録していません。
+DBは通常Docker Composeで起動します。検証に使ったmacOSでは、HomebrewのPostgreSQL 17をこのリポジトリ専用の `.local-data/postgres` で127.0.0.1に起動しています（自動起動サービスには登録しません）。ポートを変えるときは `-p` と `DATABASE_URL` を合わせ、実PostgreSQLテストには `POSTGRES_TEST_PORT` を渡します。
 
 ```sh
 # 起動
@@ -44,12 +44,12 @@ DBは通常Docker Composeで起動します。検証に使ったmacOSでは、Ho
 
 ## 実AIの画面テストと評価レポート
 
-ローカルHTTP APIは `/api/analyze` です。画面にアクセス用トークンを入力してから質問します。`npm run test:live` は実AIによる初回質問・追加質問を正解SQLと比較し、CSV保存とスマホ表示までテストします。APIなしの画面テストは `npm run test:e2e` です。実AIテストは通常CIでは実行しません。
+ローカルHTTP APIは `/api/analyze` です。画面にアクセス用トークンを入力してから質問します。`npm run test:live` は実AIによる3本の集計の調査、初回質問・追加質問を正解SQLと比較し、CSV・分析メモの保存とスマホ表示までChromium・WebKitの両方で確かめます。APIなしの画面テストは `npm run test:e2e` です。実AIテストは利用枠を使うため、CIでは流さず手元で実行します。
 
-evalは各問の完了時に `reports/eval-*.json` を更新します。`status: complete` の50問レポートだけを全体精度として扱ってください。途中のレポートは完了扱いにしません。個別の再確認は `npm run eval -- --ids=03,06` のように実行でき、レポートには部分評価と明記します。ソースSHA-256・プロバイダー・モデル・effortを記録します。サブスク接続の費用はAPI単価に換算せず `null` とします。
+evalは各問の完了時に `reports/eval-*.json` を更新します。全体の正答率には `status: complete`・`fullSuite: true` の50問レポートを使います。個別の再確認は `npm run eval -- --ids=03,06` のように実行でき、レポートには部分評価と記録されます。ソースSHA-256・プロバイダー・モデル・effortを記録します。サブスク接続の費用はAPI単価に換算せず `null` とします。
 
-費用を推計する場合だけ `.env.local` に `INPUT_USD_PER_MILLION`、`OUTPUT_USD_PER_MILLION`、`JPY_PER_USD` を設定してください。単価未設定なら費用は `null` です。キャッシュ割引や使用量が取得できなかった失敗呼び出しの請求は完全に反映しないため、請求額ではなく設定単価による推計です。
+費用を推計する場合は `.env.local` に `INPUT_USD_PER_MILLION`、`OUTPUT_USD_PER_MILLION`、`JPY_PER_USD` を設定します。設定した単価×使用トークンで計算する推計値で（キャッシュ入力も通常入力として数える保守的な値）、単価を設定しないときは `null` です。
 
-## Playwright のブラウザを取得できない環境
+## 画面テスト（Chromium・WebKit）
 
-`npx playwright install chromium` がネットワーク制限で失敗する環境では、npm配布のChromium（例: `@sparticuz/chromium`）を取得し、`CHROMIUM_EXECUTABLE_PATH` にそのパスを指定して `npm run test:e2e` を実行できます。
+`npx playwright install chromium webkit` のあと `npm run test:e2e` で、両方のブラウザで画面テストを流します。開発サーバーのポートは `E2E_PORT`（既定3002）、実AIの画面テストは `LIVE_PORT`（既定3001）で変えられます。ネットワーク制限でブラウザを取得できない環境では、npm配布のChromium（例: `@sparticuz/chromium`）のパスを `CHROMIUM_EXECUTABLE_PATH` に指定して Chromium だけを流せます（`--project=chromium`）。
