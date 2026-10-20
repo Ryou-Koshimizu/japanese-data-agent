@@ -8,6 +8,7 @@ export const tables = [
 ] as const;
 export const schema = `基準日時: 2026-10-01 (日本時間)。データ期間: 2024-10-01〜2026-09-30。
 売上=completed注文のorder_items.quantity * unit_price。キャンセル・返金は売上に含めない。
+販売数量=completed注文のorder_items.quantityの合計。売上と同じくキャンセル・返金は含めない。
 先月=2026-09。直近12か月=2025-10〜2026-09。前年比=前年同月との比較。
 金額は日本円。粗利=quantity*(unit_price-products.cost)。割引後価格はunit_priceに反映済み。
 リピート顧客=completed注文が期間内2件以上。リピート率=該当顧客数/購入顧客数。
