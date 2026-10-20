@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { AxeBuilder } from '@axe-core/playwright';
+import { settle } from './settle';
 test('質問から固定回答・SQL・表まで確認できる', async ({ page }) => {
   await page.goto('/');
   if (process.env.CAPTURE_DEMO) {
@@ -112,11 +113,13 @@ test('初期画面と結果画面にaxeで検出されるWCAG A・AA違反がな
 }) => {
   await page.goto('/');
   await page.evaluate(() => document.fonts.ready);
-  const audit = async () =>
-    new AxeBuilder({ page })
+  const audit = async () => {
+    await settle(page);
+    return new AxeBuilder({ page })
       .include('.shell')
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
+  };
   expect((await audit()).violations).toEqual([]);
   await page
     .getByRole('button', { name: '先月の売上トップ10の商品は？', exact: false })
@@ -145,6 +148,7 @@ test('実AIの記録を再生し、続きのターンまで辿れる', async ({ 
   await expect(second).toContainText('実AI記録の再生');
   await second.getByText('生成SQLを確認').click();
   await expect(second.locator('pre').last()).toContainText('SELECT');
+  await settle(page);
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa'])
     .analyze();

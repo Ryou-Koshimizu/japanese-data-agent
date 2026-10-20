@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { AxeBuilder } from '@axe-core/playwright';
+import { settle } from './settle';
 import type { Analysis } from '../src/core/contracts';
 test('確認履歴・複数根拠・次の質問・分析メモを操作できる（モデルモック）', async ({
   page,
@@ -91,6 +92,7 @@ test('確認履歴・複数根拠・次の質問・分析メモを操作でき�
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
+  await settle(page);
   expect(
     (
       await new AxeBuilder({ page })

@@ -2,11 +2,12 @@ import { it, expect } from 'vitest';
 import { Pool } from 'pg';
 import { postgresExecutor } from '../src/adapters/postgres';
 const enabled = process.env.RUN_POSTGRES_TESTS === '1';
+// The local database port (Docker Compose uses 54324).
+const port = process.env.POSTGRES_TEST_PORT ?? '54324';
 it.skipIf(!enabled)(
   '実PostgreSQLは読み取りを許可し直接の更新を拒否する',
   async () => {
-    const url =
-      'postgresql://analyst:analyst_local_only@127.0.0.1:54324/analytics';
+    const url = `postgresql://analyst:analyst_local_only@127.0.0.1:${port}/analytics`;
     const db = postgresExecutor(url);
     const pool = new Pool({ connectionString: url });
     try {
@@ -27,7 +28,7 @@ it.skipIf(!enabled)(
 );
 it.skipIf(!enabled)('管理者接続は分析経路で拒否する', async () => {
   const db = postgresExecutor(
-    'postgresql://postgres:postgres_local_only@127.0.0.1:54324/analytics',
+    `postgresql://postgres:postgres_local_only@127.0.0.1:${port}/analytics`,
   );
   try {
     await expect(

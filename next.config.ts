@@ -20,6 +20,7 @@ const csp = [
 
 const config: NextConfig = {
   poweredByHeader: false,
+  devIndicators: false,
   serverExternalPackages: ['pg', 'pg-cursor', 'pgsql-parser'],
   async headers() {
     return [

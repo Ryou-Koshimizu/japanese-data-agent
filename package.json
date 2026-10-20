@@ -25,8 +25,10 @@
   "type": "module",
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.79",
+    "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/noto-sans-jp": "^5.3.1",
     "ai": "^7.0.138",
+    "lucide-react": "^1.50.0",
     "next": "^16.4.0",
     "pg": "^8.23.1",
     "pg-cursor": "^2.22.1",
