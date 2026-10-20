@@ -4,6 +4,7 @@ import { sameResult } from '../src/eval/compare';
 import type { Analysis } from '../src/core/contracts';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { analysisMarkdown } from '../src/core/conversation';
+import { statesCausalLimit } from './causal';
 
 test('実ローカルAPIがトークンなしのリクエストを拒否する', async ({
   request,
@@ -65,9 +66,11 @@ test('実AIで売上変化を調査し、根拠と限界を画面・分析メモ
   expect(result.kind).toBe('answer');
   expect(result.evidence).toHaveLength(3);
   expect(result.report?.findings.length).toBeGreaterThan(0);
-  expect((result.report?.limitations ?? []).join(' ')).toMatch(
-    /因果|断定|原因/,
-  );
+  // The answer must say the cause is not established by these numbers.
+  expect(
+    statesCausalLimit(result.report?.limitations ?? []),
+    (result.report?.limitations ?? []).join(' / '),
+  ).toBe(true);
   const db = postgresExecutor(process.env.DATABASE_URL);
   try {
     const gold = await db.execute(
