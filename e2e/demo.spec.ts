@@ -154,3 +154,32 @@ test('実AIの記録を再生し、続きのターンまで辿れる', async ({ 
     .analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('画面の読み込みが遅くても、Enterで送った質問を失わない', async ({
+  page,
+}) => {
+  // A slow device or CI runner: the page is visible before its scripts run.
+  // Pressing Enter then must not fall back to a native form submit (a reload
+  // that drops the question).
+  await page.route('**/_next/static/chunks/**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    await route.continue();
+  });
+  await page.goto('/', { waitUntil: 'commit' });
+  const input = page.getByRole('textbox', {
+    name: 'データへの質問',
+    exact: false,
+  });
+  // A marker on window disappears if the document is reloaded.
+  await page.waitForFunction(() => document.readyState !== 'loading');
+  await page.evaluate(() => ((window as { marker?: number }).marker = 1));
+  await input.fill('地域別の売上を比較して');
+  await input.press('Enter');
+  await expect(page.getByRole('region', { name: '分析結果 1' })).toBeFocused({
+    timeout: 15000,
+  });
+  expect(
+    await page.evaluate(() => (window as { marker?: number }).marker),
+    '送信でページが読み直されていない',
+  ).toBe(1);
+});

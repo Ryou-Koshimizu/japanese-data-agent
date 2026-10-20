@@ -713,8 +713,9 @@ h1 {
   background: none;
   font-size: clamp(11px, 0.95vw, 13px);
   line-height: 1.65;
-  white-space: pre;
-  overflow: hidden;
+  /* Wrap instead of cutting when a font renders wider than expected. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .art-chart {
   display: flex;
@@ -1540,8 +1541,8 @@ details[open] tbody tr {
   border-bottom: var(--hair) solid var(--line);
 }
 .table-list code {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--text);
 }
 .table-list li > span:nth-child(2) {

@@ -258,6 +258,11 @@ export default function Client({
   const [token, setToken] = useState('');
   const [copied, setCopied] = useState<number | null>(null);
   const [lastQuestion, setLastQuestion] = useState('');
+  // Until React has hydrated, Enter would submit the form natively and reload
+  // the page, losing the question. Controls stay disabled until then.
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  const locked = busy || !ready;
   const resultRef = useRef<HTMLElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
@@ -358,7 +363,7 @@ export default function Client({
           </span>
         </a>
         <nav className="topnav" aria-label="操作">
-          <button className="ghost" disabled={busy} onClick={reset}>
+          <button className="ghost" disabled={locked} onClick={reset}>
             <Plus {...icon} />
             <span className="label">新しい分析</span>
           </button>
@@ -431,7 +436,7 @@ export default function Client({
                   onChange={(e) => setQuestion(e.target.value)}
                   maxLength={1500}
                   placeholder="例：先月の売上を東京だけで比較して"
-                  disabled={busy}
+                  disabled={locked}
                   autoComplete="off"
                 />
                 {busy ? (
@@ -446,7 +451,7 @@ export default function Client({
                 ) : (
                   <button
                     className="primary"
-                    disabled={!question.trim()}
+                    disabled={!ready || !question.trim()}
                     type="submit"
                   >
                     分析する <ArrowRight {...icon} />
@@ -785,7 +790,7 @@ export default function Client({
                         {c.result.report.nextQuestions.map((q) => (
                           <button
                             key={q}
-                            disabled={busy}
+                            disabled={locked}
                             onClick={() => submit(q)}
                           >
                             {q} <ArrowRight {...icon} />
@@ -847,7 +852,7 @@ export default function Client({
                 <p>{error}</p>
                 <button
                   className="secondary"
-                  disabled={busy}
+                  disabled={locked}
                   onClick={() => submit(lastQuestion)}
                 >
                   もう一度試す
@@ -873,7 +878,7 @@ export default function Client({
                   {replayScenarios.map((s, i) => (
                     <button
                       key={s.id}
-                      disabled={busy}
+                      disabled={locked}
                       style={{ '--i': i } as never}
                       onClick={() => submit(s.questions[0], true)}
                     >
@@ -911,7 +916,7 @@ export default function Client({
                 {examples.map((q, i) => (
                   <button
                     key={q}
-                    disabled={busy}
+                    disabled={locked}
                     style={{ '--i': i + 4 } as never}
                     onClick={() => submit(q)}
                   >

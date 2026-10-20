@@ -72,7 +72,7 @@ async function measure(page: Page) {
     // Text that is cut off shows up as content wider/taller than its box.
     const clipped = [
       ...document.querySelectorAll(
-        '.topbar a, .topbar button, .hero h1, .hero .lede, .mode, .composer label, .composer button, .composer small, .jump, .examples button, .section-heading, .dataset, .notice',
+        '.topbar a, .topbar button, .hero h1, .hero .lede, .mode, .composer label, .composer button, .composer small, .jump, .hero-art, .examples button, .section-heading, .dataset, .notice',
       ),
     ]
       .filter(visible)
@@ -89,6 +89,15 @@ async function measure(page: Page) {
         );
       })
       .map((el) => el.className || el.tagName);
+    // Nothing inside the header or the first view reaches past the screen
+    // edge (the shell clips sideways overflow, so measure it directly).
+    const pastEdge = [...document.querySelectorAll('.topbar *, .hero *')]
+      .filter(visible)
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < -0.5 || r.right > innerWidth + 0.5;
+      })
+      .map((el) => el.className || el.tagName);
     // Each headline line is set on one line (no break in the middle).
     const brokenLines = [...document.querySelectorAll('.hero h1 .line')]
       .filter((el) => {
@@ -99,6 +108,7 @@ async function measure(page: Page) {
       })
       .map((el) => el.textContent);
     return {
+      pastEdge,
       brokenLines,
       scrollWidth: document.documentElement.scrollWidth,
       header: { top: header.top, height: header.height },
@@ -142,6 +152,7 @@ for (const [width, height] of sizes) {
     expect(overlaps(brand, nav), 'ロゴと操作の重なり').toBe(false);
     expect(m.clipped, '欠けた文字').toEqual([]);
     expect(m.brokenLines, '見出しの行の途中での折り返し').toEqual([]);
+    expect(m.pastEdge, '画面の端からはみ出した部品').toEqual([]);
 
     // The answer screen must not overflow either.
     await page

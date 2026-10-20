@@ -23,7 +23,7 @@
 | 回答時間（SQL回答40問） | 中央値 15.8秒 / 平均 16.1秒（1問ごとにCLIを2回起動：計画と解説）    |
 | 実AIの画面テスト        | 6件成功（Chromium・WebKit、実PostgreSQL、正解SQLと照合）            |
 | 単体・API・実PostgreSQL | 93件成功（スキップ0件）                                             |
-| ブラウザE2E             | 64件成功（Chromium・WebKit、25の画面サイズ、axeでWCAG A/AA違反0件） |
+| ブラウザE2E             | 66件成功（Chromium・WebKit、25の画面サイズ、axeでWCAG A/AA違反0件） |
 
 測定の手順・ログ・各回の条件は [検証記録](docs/verification.md)。評価レポートは [docs/evidence](docs/evidence) に同梱しています。Claudeで測るときは `AGENT_PROVIDER=claude` と自分のキーで同じ `npm run eval` を実行すると、同じ形式のレポートが出ます。
 
