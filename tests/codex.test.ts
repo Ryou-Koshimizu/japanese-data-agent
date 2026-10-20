@@ -1,5 +1,9 @@
 import { it, expect, vi, afterEach } from 'vitest';
-import { parseCodexOutput, codexProvider } from '../src/adapters/codex';
+import {
+  parseCodexOutput,
+  codexProvider,
+  exitError,
+} from '../src/adapters/codex';
 import { readConfig } from '../src/server/config';
 afterEach(() => vi.unstubAllEnvs());
 const finish = JSON.stringify({
@@ -72,4 +76,39 @@ it('subscription configuration requires no Claude key and never estimates API bi
   });
   vi.stubEnv('CODEX_EFFORT', 'invalid');
   expect(() => readConfig()).toThrow();
+});
+
+const reconnect = JSON.stringify({
+  type: 'error',
+  message: 'Reconnecting... 2/5 (unexpected status 403 Forbidden)',
+});
+const fallback = JSON.stringify({
+  type: 'item.completed',
+  item: { type: 'error', message: 'Falling back from WebSockets to HTTPS' },
+});
+it('accepts a completed turn after transient reconnect notices', () => {
+  expect(
+    parseCodexOutput(`${reconnect}\n${fallback}\n${message}\n${finish}\n`),
+  ).toEqual({
+    value: { kind: 'clarify', sql: '', message: '期間は？' },
+    usage: { inputTokens: 12, outputTokens: 6 },
+  });
+});
+it('classifies a usage limit reported on stdout when the CLI exits non-zero', () => {
+  const limit = 'You’ve hit your usage limit. Try again at 11:02 PM.';
+  const stdout = [
+    reconnect,
+    fallback,
+    JSON.stringify({ type: 'error', message: limit }),
+    JSON.stringify({ type: 'turn.failed', error: { message: limit } }),
+  ].join('\n');
+  expect(exitError(stdout, 'websocket 403').message).toBe('CODEX_RATE_LIMIT');
+  expect(exitError('', 'unexpected crash').message).toBe(
+    'CODEX_INFERENCE_FAILED',
+  );
+  expect(() =>
+    parseCodexOutput(
+      `${message}\n${finish}\n${reconnect}\n{"type":"turn.failed"}`,
+    ),
+  ).toThrow('CODEX_INFERENCE_FAILED');
 });

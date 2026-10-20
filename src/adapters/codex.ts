@@ -29,17 +29,25 @@ function inferenceError(detail: unknown) {
 
 // Only the final structured response and aggregate usage are accepted. Tool output
 // and internal reasoning are neither returned nor written to the application's logs.
+// The CLI also streams transient notices as `error` events (e.g. "Reconnecting...",
+// a WebSocket-to-HTTPS fallback); they only decide the error code when the turn
+// does not complete.
 export function parseCodexOutput(output: string) {
   let message: string | undefined;
   let usage: Usage | undefined;
+  let failed: unknown;
+  const notices: unknown[] = [];
   for (const line of output.trim().split('\n')) {
     if (!line.trim()) continue;
     const event = JSON.parse(line);
-    if (event.type === 'error' || event.type === 'turn.failed')
-      throw inferenceError(event.error ?? event.message);
+    if (event.type === 'error') notices.push(event.message ?? event.error);
+    if (event.type === 'turn.failed')
+      failed = event.error ?? event.message ?? 'turn.failed';
     if (event.type === 'item.started' || event.type === 'item.completed') {
-      if (event.item?.type === 'error')
-        throw inferenceError(event.item.message);
+      if (event.item?.type === 'error') {
+        notices.push(event.item.message);
+        continue;
+      }
       if (!['agent_message', 'reasoning'].includes(event.item?.type))
         throw new Error(
           `CODEX_UNEXPECTED_ITEM_${String(event.item?.type)
@@ -59,12 +67,30 @@ export function parseCodexOutput(output: string) {
       };
     }
   }
-  if (!message || !usage) throw new Error('CODEX_INCOMPLETE_RESPONSE');
+  if (failed !== undefined) throw inferenceError([failed, ...notices]);
+  if (!message || !usage) {
+    if (notices.length) throw inferenceError(notices);
+    throw new Error('CODEX_INCOMPLETE_RESPONSE');
+  }
   z.object({
     inputTokens: z.number().nonnegative(),
     outputTokens: z.number().nonnegative(),
   }).parse(usage);
   return { value: JSON.parse(message) as unknown, usage };
+}
+
+/** A non-zero exit reports its reason in the JSON events on stdout. */
+export function exitError(stdout: string, stderr: string) {
+  try {
+    parseCodexOutput(stdout);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      /^CODEX_(RATE_LIMIT|AUTH_FAILED)$/.test(error.message)
+    )
+      return error;
+  }
+  return inferenceError(stderr);
 }
 
 async function infer(
@@ -202,7 +228,7 @@ async function infer(
         clearTimeout(timer);
         clearTimeout(killTimer);
         signal?.removeEventListener('abort', abort);
-        if (failure || code !== 0) reject(failure ?? inferenceError(stderr));
+        if (failure || code !== 0) reject(failure ?? exitError(stdout, stderr));
         else resolve(stdout);
       });
       child.stdin.end(JSON.stringify(data));
