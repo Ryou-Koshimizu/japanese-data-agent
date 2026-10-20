@@ -89,7 +89,17 @@ async function measure(page: Page) {
         );
       })
       .map((el) => el.className || el.tagName);
+    // Each headline line is set on one line (no break in the middle).
+    const brokenLines = [...document.querySelectorAll('.hero h1 .line')]
+      .filter((el) => {
+        const s = getComputedStyle(el);
+        return (
+          el.getBoundingClientRect().height > parseFloat(s.lineHeight) * 1.5
+        );
+      })
+      .map((el) => el.textContent);
     return {
+      brokenLines,
       scrollWidth: document.documentElement.scrollWidth,
       header: { top: header.top, height: header.height },
       hero: { top: hero.top, height: hero.height },
@@ -131,6 +141,7 @@ for (const [width, height] of sizes) {
     const [brand, nav] = m.brandNav;
     expect(overlaps(brand, nav), 'ロゴと操作の重なり').toBe(false);
     expect(m.clipped, '欠けた文字').toEqual([]);
+    expect(m.brokenLines, '見出しの行の途中での折り返し').toEqual([]);
 
     // The answer screen must not overflow either.
     await page

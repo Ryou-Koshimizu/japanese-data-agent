@@ -428,8 +428,15 @@ h1 em {
   font-style: normal;
   color: var(--muted);
 }
+/* Each line breaks only at the marked phrase boundary, never mid-word. */
+h1 .line {
+  display: block;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
 .lede {
   max-width: 34em;
+  word-break: auto-phrase;
   margin: 0;
   color: var(--muted);
   font-size: clamp(14px, min(1.6vw, 2.2svh), 17px);
@@ -758,7 +765,7 @@ h1 {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   }
   h1 {
-    font-size: clamp(40px, min(4.4vw, 7.4svh), 72px);
+    font-size: clamp(36px, min(4.2vw, 7.4svh), 62px);
   }
   .hero-art {
     display: block;
@@ -1666,7 +1673,7 @@ details[open] tbody tr {
     max-width: calc(2000px + 2 * var(--gutter));
   }
   h1 {
-    font-size: clamp(72px, min(4.2vw, 7.4svh), 100px);
+    font-size: clamp(64px, min(4vw, 7.4svh), 92px);
   }
   .lede {
     font-size: 23px;

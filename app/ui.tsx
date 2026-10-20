@@ -392,12 +392,15 @@ export default function Client({
               </span>
             </div>
             <h1>
-              質問は、日本語で。
-              <br />
-              <em>答えは、根拠つきで。</em>
+              <span className="line">日本語で聞けば、</span>
+              <em className="line">
+                AIが安全な
+                <wbr />
+                SQLで集計。
+              </em>
             </h1>
             <p className="lede">
-              AIが集計の手順を考え、安全を確かめてから読み取り専用で実行。グラフ・表・SQLまで、その場で確かめられます。
+              AIが集計のSQLを書き、実行前に構文を検証して読み取り専用で実行。答えはグラフ・表・使ったSQLつきで、その場で確かめられます。
             </p>
             <form
               onSubmit={(e) => {
