@@ -46,6 +46,8 @@ const compact = new Intl.NumberFormat('ja-JP', {
   notation: 'compact',
   maximumFractionDigits: 1,
 });
+// Every digit of the value, with separators (no rounding).
+const exact = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 20 });
 const tables: [string, string, number][] = [
   ['customers', '顧客', 5000],
   ['products', '商品', 300],
@@ -62,7 +64,7 @@ function Graph({ result }: { result: Analysis }) {
     return (
       <div className="metric">
         {typeof value === 'number' ? (
-          <CountUp value={value} format={(n) => String(n)} />
+          <CountUp value={value} format={(n) => exact.format(n)} />
         ) : (
           <span className="num">{String(value)}</span>
         )}
@@ -88,6 +90,8 @@ function Graph({ result }: { result: Analysis }) {
     labelStyle: { color: 'var(--muted)' },
     itemStyle: { color: 'var(--accent)' },
     cursor: { fill: 'rgba(255,255,255,.03)', stroke: 'var(--line-strong)' },
+    formatter: (value: unknown) =>
+      typeof value === 'number' ? exact.format(value) : String(value),
   };
   return (
     <div
